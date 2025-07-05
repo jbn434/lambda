@@ -35,8 +35,11 @@ jobs:
         run: |
           zip -r ../infra/lambda/backend-api.zip dist node_modules package.json
           
-      - name: 🔍 Debug ZIP presence
-        run: ls -l ./infra/lambda/
+      - name: 🐛 Debug Lambda ZIP Path
+        run: |
+          echo "Checking ZIP file presence..."
+          ls -lh ./infra/lambda/backend-api.zip
+          file ./infra/lambda/backend-api.zip
 
       - name: ⚙️ Set up Terraform
         uses: hashicorp/setup-terraform@v3
