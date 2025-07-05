@@ -1,5 +1,5 @@
 function_name  = "backend-api-dev"
-lambda_package = "backend-api.zip"
+lambda_package = "${path.module}/backend-api.zip"
 handler        =  "dist/main.handler"
 runtime        = "nodejs18.x"
 memory_size    =510
