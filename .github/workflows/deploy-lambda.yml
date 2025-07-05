@@ -34,6 +34,9 @@ jobs:
         working-directory: ./src
         run: |
           zip -r ../infra/lambda/backend-api.zip dist node_modules package.json
+          
+      - name: 🔍 Debug ZIP presence
+        run: ls -l ./infra/lambda/
 
       - name: ⚙️ Set up Terraform
         uses: hashicorp/setup-terraform@v3
