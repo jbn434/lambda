@@ -35,6 +35,7 @@ jobs:
         run: |
           npm prune --production
           zip -r ../infra/lambda/backend-api.zip dist node_modules package.json
+          -x "**/*.map" "**/*.d.ts" "**/test/**"
           
       - name: 🐛 Debug Lambda ZIP Path
         run: |
