@@ -1,6 +1,6 @@
 function_name  = "backend-api-dev"
 lambda_package = "backend-api.zip"
-handler        =  "dist/main.mainhandler"
+handler        =  "dist/main.handler"
 runtime        = "nodejs18.x"
 memory_size    =510
 timeout        = 40
