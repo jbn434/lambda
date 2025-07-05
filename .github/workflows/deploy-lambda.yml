@@ -41,6 +41,10 @@ jobs:
           echo "Checking ZIP file presence..."
           ls -lh ./infra/lambda/backend-api.zip
           file ./infra/lambda/backend-api.zip
+          
+      - name: 🧪 Inspect Lambda ZIP contents
+        run: unzip -l ./infra/lambda/backend-api.zip
+
 
       - name: ⚙️ Set up Terraform
         uses: hashicorp/setup-terraform@v3
