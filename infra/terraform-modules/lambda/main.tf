@@ -32,8 +32,9 @@ resource "aws_lambda_function" "this" {
   memory_size   = var.memory_size
   timeout       = var.timeout
 
-filename         = "${path.root}/infra/lambda/${var.lambda_package}"
-source_code_hash = filebase64sha256("${path.root}/infra/lambda/${var.lambda_package}")
+filename         = var.lambda_package
+source_code_hash = filebase64sha256(var.lambda_package)
+
 
 
 
