@@ -38,11 +38,6 @@ source_code_hash = filebase64sha256(var.lambda_package)
 
 
 
-  environment {
-    variables = var.environment_variables
-  }
-
-
   tags = var.tags
 }
 

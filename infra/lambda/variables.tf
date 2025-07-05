@@ -33,10 +33,6 @@ variable "lambda_role_arn" {
   description = "IAM Role ARN for the Lambda function"
 }
 
-variable "environment_variables" {
-  type        = map(string)
-  description = "Environment variables for the Lambda function"
-}
 
 variable "tags" {
   type        = map(string)
