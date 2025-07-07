@@ -23,6 +23,11 @@ resource "aws_iam_role_policy_attachment" "secrets_access" {
   policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"  # Adjust to read-only in prod
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
+  role       = aws_iam_role.lambda_exec_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
 resource "aws_vpc" "lambda_vpc" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
