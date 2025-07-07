@@ -66,15 +66,22 @@ resource "aws_instance" "ec2_instance" {
 user_data = <<-EOF
   #!/bin/bash
   set -e
+
   # Install dependencies
   apt-get update -y
-  apt-get install -y curl gnupg2 lsb-release ca-certificates software-properties-common sudo awscli
+  apt-get install -y curl gnupg2 lsb-release ca-certificates software-properties-common unzip sudo
 
   # Install and start SSM agent
   snap install amazon-ssm-agent --classic
   systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
   systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+  # Install AWS CLI v2
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  ./aws/install
 EOF
+
 
 
 
