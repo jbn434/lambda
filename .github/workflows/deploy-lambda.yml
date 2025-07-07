@@ -134,6 +134,8 @@ jobs:
               "apt-get install -y postgresql-15 postgresql-client-15",
               "systemctl enable postgresql",
               "systemctl start postgresql",
+              "echo \"host all all 0.0.0.0/0 md5\" >> /etc/postgresql/15/main/pg_hba.conf",
+              "sudo -u postgres psql -c \"ALTER SYSTEM SET listen_addresses = '*'\"",
               "systemctl restart postgresql"
             ]' \
             --region us-east-1 \
