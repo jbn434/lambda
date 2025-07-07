@@ -69,12 +69,18 @@ jobs:
           EC2_NAME=$(terraform output -raw ec2_instance_name)
           echo "ec2_name=$EC2_NAME" >> $GITHUB_OUTPUT
           echo "EC2_NAME_TAG=$EC2_NAME" >> $GITHUB_ENV
-      - name: 💻 Install AWS CLI
+          
+      - name: 💻 Check & Install AWS CLI if not present
         run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
-          aws --version
+          if ! command -v aws &> /dev/null; then
+           echo "AWS CLI not found. Installing..."
+           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+           unzip -q awscliv2.zip
+           sudo ./aws/install
+          else
+           echo "✅ AWS CLI already installed: $(aws --version)"
+          fi
+
 
       - name: ⏳ Wait for EC2 to register in SSM
         env:
