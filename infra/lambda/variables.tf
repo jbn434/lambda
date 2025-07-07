@@ -28,11 +28,6 @@ variable "timeout" {
   description = "Lambda timeout in seconds"
 }
 
-variable "lambda_role_arn" {
-  type        = string
-  description = "IAM Role ARN for the Lambda function"
-}
-
 
 variable "tags" {
   type        = map(string)
