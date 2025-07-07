@@ -20,7 +20,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logging" {
 
 resource "aws_iam_role_policy_attachment" "secrets_access" {
   role       = aws_iam_role.lambda_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"  # Adjust to read-only in prod
+  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
@@ -58,6 +58,16 @@ resource "aws_subnet" "private_2" {
   }
 }
 
+resource "aws_subnet" "public_1" {
+  vpc_id            = aws_vpc.lambda_vpc.id
+  cidr_block        = var.public_subnet_cidr
+  availability_zone = var.subnet_azs[0]
+
+  tags = {
+    Name = "${var.resource_name_prefix}-public-subnet-1"
+  }
+}
+
 resource "aws_internet_gateway" "lambda_igw" {
   vpc_id = aws_vpc.lambda_vpc.id
 
@@ -66,7 +76,38 @@ resource "aws_internet_gateway" "lambda_igw" {
   }
 }
 
+resource "aws_eip" "nat_eip" {
+  vpc = true
+  tags = {
+    Name = "${var.resource_name_prefix}-nat-eip"
+  }
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_1.id
+
+  tags = {
+    Name = "${var.resource_name_prefix}-nat-gw"
+  }
+
+  depends_on = [aws_internet_gateway.lambda_igw]
+}
+
 resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.lambda_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+
+  tags = {
+    Name = "${var.resource_name_prefix}-private-rt"
+  }
+}
+
+resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.lambda_vpc.id
 
   route {
@@ -75,7 +116,7 @@ resource "aws_route_table" "private_rt" {
   }
 
   tags = {
-    Name = "${var.resource_name_prefix}-rt"
+    Name = "${var.resource_name_prefix}-public-rt"
   }
 }
 
@@ -87,6 +128,11 @@ resource "aws_route_table_association" "private_1" {
 resource "aws_route_table_association" "private_2" {
   subnet_id      = aws_subnet.private_2.id
   route_table_id = aws_route_table.private_rt.id
+}
+
+resource "aws_route_table_association" "public_1" {
+  subnet_id      = aws_subnet.public_1.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
 resource "aws_security_group" "lambda_sg" {
@@ -124,5 +170,3 @@ resource "aws_lambda_function" "this" {
 
   tags = var.tags
 }
-
-

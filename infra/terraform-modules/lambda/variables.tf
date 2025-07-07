@@ -26,3 +26,7 @@ variable "subnet_cidrs" {
 variable "resource_name_prefix" {
   type = string
 }
+
+variable "public_subnet_cidr" { 
+   type        = string
+}

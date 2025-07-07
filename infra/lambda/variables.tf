@@ -39,3 +39,8 @@ variable "vpc_cidr"           { type = string }
 variable "subnet_azs"         { type = list(string) }
 variable "subnet_cidrs"       { type = list(string) }
 variable "resource_name_prefix" { type = string }
+
+variable "public_subnet_cidr" {
+  description = "CIDR block for public subnet"
+  type        = string
+}
