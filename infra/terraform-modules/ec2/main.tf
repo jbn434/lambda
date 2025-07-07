@@ -68,12 +68,14 @@ user_data = <<-EOF
   set -e
   # Install dependencies
   apt-get update -y
-  apt-get install -y curl gnupg2 lsb-release ca-certificates software-properties-common sudo
+  apt-get install -y curl gnupg2 lsb-release ca-certificates software-properties-common sudo awscli
 
+  # Install and start SSM agent
   snap install amazon-ssm-agent --classic
   systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
-  systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.servvice
+  systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
 EOF
+
 
 
 
