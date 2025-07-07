@@ -103,7 +103,7 @@ resource "aws_security_group" "lambda_sg" {
 
 resource "aws_lambda_function" "this" {
   function_name = var.function_name
-  role          = var.lambda_role_arn
+  role          = aws_iam_role.lambda_exec_role.arn
   handler       = var.handler
   runtime       = var.runtime
   memory_size   = var.memory_size
