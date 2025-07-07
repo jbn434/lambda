@@ -39,3 +39,8 @@ variable "tags" {
   description = "Tags to apply to resources"
 }
 
+# NEW: network inputs
+variable "vpc_cidr"           { type = string }
+variable "subnet_azs"         { type = list(string) }
+variable "subnet_cidrs"       { type = list(string) }
+variable "resource_name_prefix" { type = string }

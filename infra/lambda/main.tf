@@ -8,5 +8,9 @@ module "lambda" {
   memory_size          = var.memory_size
   timeout              = var.timeout
   tags                 = var.tags
+  vpc_cidr             = var.vpc_cidr
+  subnet_azs           = var.subnet_azs
+  subnet_cidrs         = var.subnet_cidrs
+  resource_name_prefix = var.resource_name_prefix
 }
 
