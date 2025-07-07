@@ -8,6 +8,6 @@ module "ec2" {
   vpc_id                    = data.terraform_remote_state.lambda.outputs.vpc_id
   subnet_id                 = data.terraform_remote_state.lambda.outputs.private_subnet_ids[0]
   lambda_security_group_id = data.terraform_remote_state.lambda.outputs.lambda_sg_id
-
+  sql_backup_bucket  = var.sql_backup_bucket
   tags                      = var.tags
 }

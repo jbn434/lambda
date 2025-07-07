@@ -25,3 +25,7 @@ variable "lambda_security_group_id" {
 variable "tags" {
   type = map(string)
 }
+
+variable "sql_backup_bucket" {
+  type        = string
+}
