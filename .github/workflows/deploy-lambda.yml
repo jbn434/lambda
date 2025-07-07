@@ -36,13 +36,12 @@ jobs:
           npm prune --production
           zip -r ../infra/lambda/backend-api.zip dist node_modules package.json -x "**/*.map" "**/*.d.ts" "**/test/**"
 
-
       - name: ⚙️ Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: 🌍 Terraform Lambda with VPC Init & Apply
+      - name: 🌍 Terraform Lambda Init & Apply
         working-directory: ./infra/lambda
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -51,7 +50,7 @@ jobs:
           terraform init
           terraform apply -auto-approve -var-file=dev.tfvars
 
-      - name: 🌍 Terraform EC2 with Postgress Init & Apply
+      - name: 🌍 Terraform EC2 Init & Apply
         working-directory: ./infra/ec2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -60,7 +59,50 @@ jobs:
           terraform init
           terraform apply -auto-approve -var-file=dev.tfvars
 
-      - name: 🌍 Terraform Rest API with Cloudwatch Init & Apply
+      - name: 📤 Get EC2 Name Tag from Terraform
+        id: ec2-name
+        working-directory: ./infra/ec2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          echo "EC2_NAME=$(terraform output -raw ec2_instance_name)" >> $GITHUB_OUTPUT
+
+      - name: 🛠️ Install PostgreSQL via SSM
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          EC2_NAME_TAG: ${{ steps.ec2-name.outputs.EC2_NAME }}
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${EC2_NAME_TAG}" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text --region us-east-1)
+
+          echo "Target instance: $INSTANCE_ID"
+
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Install PostgreSQL 15" \
+            --parameters 'commands=[
+              "set -euxo pipefail",
+              "apt-get update -y",
+              "apt-get install -y curl gnupg2 lsb-release ca-certificates sudo software-properties-common",
+              "curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg",
+              "echo \"deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt noble-pgdg main\" > /etc/apt/sources.list.d/pgdg.list",
+              "apt-get update -y",
+              "apt-get install -y postgresql-15 postgresql-client-15",
+              "systemctl enable postgresql",
+              "systemctl start postgresql",
+              "sed -i \"s/^#listen_addresses = 'localhost'/listen_addresses = '*'\/g\" /etc/postgresql/15/main/postgresql.conf",
+              "echo \"host all all 0.0.0.0/0 md5\" >> /etc/postgresql/15/main/pg_hba.conf",
+              "systemctl restart postgresql"
+            ]' \
+            --region us-east-1 \
+            --output text
+
+      - name: 🌍 Terraform REST API Init & Apply
         working-directory: ./infra/api
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

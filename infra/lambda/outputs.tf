@@ -21,3 +21,4 @@ output "private_subnet_ids" {
 output "lambda_sg_id" {
   value = module.lambda.lambda_sg_id
 }
+

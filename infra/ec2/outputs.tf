@@ -5,3 +5,7 @@ output "ec2_instance_id" {
 output "ec2_private_ip" {
   value = module.ec2.private_ip
 }
+
+output "ec2_instance_name" {
+  value = module.ec2.instance_name
+}
