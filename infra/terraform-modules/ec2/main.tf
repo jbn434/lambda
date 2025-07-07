@@ -97,6 +97,7 @@ resource "aws_iam_policy" "s3_read_sql_backup" {
 }
 
 resource "aws_iam_role_policy_attachment" "attach_policy_to_instance_role" {
-  role       = aws_iam_instance_profile.ec2_instance_profile.role
+  role       = aws_iam_role.ssm_role.name  # ✅ correct
   policy_arn = aws_iam_policy.s3_read_sql_backup.arn
 }
+
