@@ -65,38 +65,35 @@ user_data = <<-EOF
   #!/bin/bash
   set -eux
 
-  export DEBIAN_FRONTEND=noninteractive
-
-  # Update and install dependencies
+  # Ensure snap is installed
   apt-get update -y
-  apt-get install -y curl gnupg2 lsb-release ca-certificates sudo snapd
+  apt-get install -y snapd curl ca-certificates gnupg lsb-release sudo
 
-  # Add PostgreSQL repo (PGDG)
-  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-    | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
-  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
-    > /etc/apt/sources.list.d/pgdg.list
+  # Add PostgreSQL GPG key and APT repo for 24.04 (Or noble release)
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
+  # Install PostgreSQL 15
   apt-get update -y
   apt-get install -y postgresql-15 postgresql-client
 
-  # Enable and start PostgreSQL
+  # Enable and start PostgreSQL service
   systemctl enable postgresql
   systemctl start postgresql
 
-  # Configure PostgreSQL for VPC access
+  # Update PostgreSQL configs for remote access
   sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
   echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
   systemctl restart postgresql
 
-  # Log checks
+  # Install SSM Agent via snap
+  snap install amazon-ssm-agent --classic
+  systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+  systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+  # Optional debug
   systemctl status postgresql || true
   journalctl -u postgresql.service || true
-
-  # Install SSM Agent
-  snap install amazon-ssm-agent --classic
-  systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent
-  systemctl start snap.amazon-ssm-agent.amazon-ssm-agent
 EOF
 
 
