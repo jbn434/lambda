@@ -62,35 +62,33 @@ resource "aws_instance" "ec2_instance" {
   )
 
 user_data = <<-EOF
-              #!/bin/bash
-              set -e
+  #!/bin/bash
+  set -e
 
-              # Install required packages
-              apt-get update -y
-              apt-get install -y curl ca-certificates gnupg lsb-release software-properties-common snapd
+  # Install dependencies
+  apt-get update -y
+  apt-get install -y snapd curl ca-certificates gnupg lsb-release
 
-              # Add PostgreSQL APT repository
-              curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
-              echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt \$(lsb_release -cs)-pgdg main" \
-                > /etc/apt/sources.list.d/pgdg.list
+  # Add PostgreSQL official APT repository
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt \$(lsb_release -cs)-pgdg main" \
+    > /etc/apt/sources.list.d/pgdg.list
 
-              apt-get update -y
-              apt-get install -y postgresql-15
+  apt-get update -y
+  apt-get install -y postgresql-15
 
-              # Start and enable PostgreSQL
-              systemctl enable postgresql
-              systemctl start postgresql
+  # Configure PostgreSQL for VPC access
+  echo "listen_addresses = '*'" >> /etc/postgresql/15/main/postgresql.conf
+  echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
+  systemctl enable postgresql
+  systemctl restart postgresql
 
-              # Allow access from VPC (private network only)
-              echo "listen_addresses = '*'" >> /etc/postgresql/15/main/postgresql.conf
-              echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
-              systemctl restart postgresql
-
-              # Install and start Amazon SSM Agent
-              snap install amazon-ssm-agent --classic
-              systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
-              systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+  # Install and start SSM agent using snap (required for Ubuntu 24.04+)
+  snap install amazon-ssm-agent --classic
+  systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+  systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
 EOF
+
 
 
 }
