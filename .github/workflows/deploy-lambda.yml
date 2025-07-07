@@ -69,6 +69,12 @@ jobs:
           EC2_NAME=$(terraform output -raw ec2_instance_name)
           echo "ec2_name=$EC2_NAME" >> $GITHUB_OUTPUT
           echo "EC2_NAME_TAG=$EC2_NAME" >> $GITHUB_ENV
+      - name: 💻 Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          aws --version
 
       - name: ⏳ Wait for EC2 to register in SSM
         env:
@@ -104,17 +110,16 @@ jobs:
           exit 1
 
       - name: 🛠️ Install PostgreSQL 15 via SSM
-        if: success()
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          INSTANCE_ID: ${{ env.INSTANCE_ID }}
         run: |
           aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Install PostgreSQL 15" \
             --parameters 'commands=[
+              "#!/bin/bash",
               "set -euxo pipefail",
               "apt-get update -y",
               "apt-get install -y curl gnupg2 lsb-release ca-certificates sudo software-properties-common",
