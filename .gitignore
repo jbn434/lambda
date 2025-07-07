@@ -12,3 +12,4 @@ crash.log
 *.bin
 *.backup
 !/infra/lambda/
+!/infra
