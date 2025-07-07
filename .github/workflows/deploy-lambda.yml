@@ -134,7 +134,7 @@ jobs:
               "apt-get install -y postgresql-15 postgresql-client-15",
               "systemctl enable postgresql",
               "systemctl start postgresql",
-              "sed -i \"s/^#\\?listen_addresses\\s*=.*/listen_addresses = '*'\\/\" /etc/postgresql/15/main/postgresql.conf",
+              "sed -i \\\"s/^#\\\\?listen_addresses\\\\s*=.*/listen_addresses = '*'\\\" /etc/postgresql/15/main/postgresql.conf",
               "echo \"host all all 0.0.0.0/0 md5\" >> /etc/postgresql/15/main/pg_hba.conf",
               "systemctl restart postgresql"
             ]' \
