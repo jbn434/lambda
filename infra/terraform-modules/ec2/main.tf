@@ -66,30 +66,30 @@ user_data = <<-EOF
   set -eux
 
   # Basic utilities
-  apt-get update -y
-  apt-get install -y snapd curl ca-certificates gnupg lsb-release sudo
+  sudo apt-get update -y
+   sudo apt-get install -y snapd curl ca-certificates gnupg lsb-release sudo
 
   # Add PostgreSQL repo
-  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
     | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
-  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt \$(lsb_release -cs)-pgdg main" \
+  sudo echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt \$(lsb_release -cs)-pgdg main" \
     > /etc/apt/sources.list.d/pgdg.list
 
-  apt-get update -y
-  apt-get install -y postgresql-15 postgresql-client
+  sudo apt-get update -y
+  sudo apt-get install -y postgresql-15 postgresql-client
 
   # Enable and start PostgreSQL
-  systemctl enable postgresql
-  systemctl start postgresql
+  sudo systemctl enable postgresql
+  sudo systemctl start postgresql
 
   # Ensure config allows VPC access
-  sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
-  echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
-  systemctl restart postgresql
+  sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
+  sudo echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
+  sudo systemctl restart postgresql
 
   # Log check
-  systemctl status postgresql || true
-  journalctl -u postgresql.service || true
+  sudo systemctl status postgresql || true
+  sudo journalctl -u postgresql.service || true
 
   # Install SSM Agent
   snap install amazon-ssm-agent --classic
