@@ -63,28 +63,45 @@ resource "aws_instance" "ec2_instance" {
 
 user_data = <<-EOF
   #!/bin/bash
-  exec > /var/log/user-data.log 2>&1
-  set -eux
+  set -euxo pipefail
 
+  # Log everything to file and console
+  exec > >(tee /var/log/userdata.log | logger -t user-data -s 2>/dev/console) 2>&1
+
+  # Give cloud-init and network some time
+  sleep 20
+
+  # Install dependencies
   apt-get update -y
-  apt-get install -y curl ca-certificates gnupg lsb-release
+  apt-get install -y curl gnupg2 lsb-release ca-certificates software-properties-common sudo
 
+  # Add PostgreSQL GPG key and repository for Ubuntu 24.04 (noble)
   curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
   echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
+  # Install PostgreSQL 15
   apt-get update -y
-  apt-get install -y postgresql-15 postgresql-client
+  apt-get install -y postgresql-15
 
+  # Enable and start PostgreSQL service
   systemctl enable postgresql
   systemctl start postgresql
 
-  sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
+  # Configure PostgreSQL for external access
+  sed -i "s/^#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
   echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
   systemctl restart postgresql
 
+  # Install and start SSM agent
   snap install amazon-ssm-agent --classic
+  sleep 5
   systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
   systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+  # Debug outputs
+  psql --version || echo "PostgreSQL client not found"
+  systemctl status postgresql || true
+  journalctl -u postgresql.service || true
 EOF
 
 
