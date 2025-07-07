@@ -65,37 +65,40 @@ user_data = <<-EOF
   #!/bin/bash
   set -eux
 
-  # Basic utilities
-  sudo apt-get update -y
-   sudo apt-get install -y snapd curl ca-certificates gnupg lsb-release sudo
+  export DEBIAN_FRONTEND=noninteractive
 
-  # Add PostgreSQL repo
-  sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  # Update and install dependencies
+  apt-get update -y
+  apt-get install -y curl gnupg2 lsb-release ca-certificates sudo snapd
+
+  # Add PostgreSQL repo (PGDG)
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
     | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
-  sudo echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt \$(lsb_release -cs)-pgdg main" \
+  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
     > /etc/apt/sources.list.d/pgdg.list
 
-  sudo apt-get update -y
-  sudo apt-get install -y postgresql-15 postgresql-client
+  apt-get update -y
+  apt-get install -y postgresql-15 postgresql-client
 
   # Enable and start PostgreSQL
-  sudo systemctl enable postgresql
-  sudo systemctl start postgresql
+  systemctl enable postgresql
+  systemctl start postgresql
 
-  # Ensure config allows VPC access
-  sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
-  sudo echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
-  sudo systemctl restart postgresql
+  # Configure PostgreSQL for VPC access
+  sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
+  echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
+  systemctl restart postgresql
 
-  # Log check
-  sudo systemctl status postgresql || true
-  sudo journalctl -u postgresql.service || true
+  # Log checks
+  systemctl status postgresql || true
+  journalctl -u postgresql.service || true
 
   # Install SSM Agent
   snap install amazon-ssm-agent --classic
-  systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
-  systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+  systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent
+  systemctl start snap.amazon-ssm-agent.amazon-ssm-agent
 EOF
+
 
 
 
