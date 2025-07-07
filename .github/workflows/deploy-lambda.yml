@@ -60,27 +60,53 @@ jobs:
           terraform apply -auto-approve -var-file=dev.tfvars
 
       - name: 📤 Get EC2 Name Tag from Terraform
-        id: ec2-name
+        id: get-ec2-name
         working-directory: ./infra/ec2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          echo "EC2_NAME=$(terraform output -raw ec2_instance_name)" >> $GITHUB_OUTPUT
+          EC2_NAME=$(terraform output -raw ec2_instance_name)
+          echo "ec2_name=$EC2_NAME" >> $GITHUB_OUTPUT
+          echo "EC2_NAME_TAG=$EC2_NAME" >> $GITHUB_ENV
 
-      - name: 🛠️ Install PostgreSQL via SSM
+      - name: ⏳ Wait for EC2 to register in SSM
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          EC2_NAME_TAG: ${{ steps.ec2-name.outputs.EC2_NAME }}
+          EC2_NAME_TAG: ${{ env.EC2_NAME_TAG }}
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=${EC2_NAME_TAG}" \
+            --filters "Name=tag:Name,Values=$EC2_NAME_TAG" \
             --query "Reservations[*].Instances[*].InstanceId" \
             --output text --region us-east-1)
 
-          echo "Target instance: $INSTANCE_ID"
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
 
+          echo "🔍 Checking SSM registration for: $INSTANCE_ID"
+          for i in {1..10}; do
+            CHECK=$(aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --region us-east-1 \
+              --query "InstanceInformationList[0].InstanceId" \
+              --output text 2>/dev/null)
+
+            if [[ "$CHECK" == "$INSTANCE_ID" ]]; then
+              echo "✅ EC2 registered with SSM."
+              exit 0
+            fi
+
+            echo "⏳ Waiting for SSM... attempt $i"
+            sleep 15
+          done
+
+          echo "❌ EC2 instance not registered in SSM."
+          exit 1
+
+      - name: 🛠️ Install PostgreSQL 15 via SSM
+        if: success()
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          INSTANCE_ID: ${{ env.INSTANCE_ID }}
+        run: |
           aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
@@ -95,7 +121,7 @@ jobs:
               "apt-get install -y postgresql-15 postgresql-client-15",
               "systemctl enable postgresql",
               "systemctl start postgresql",
-              "sed -i \"s/^#listen_addresses = 'localhost'/listen_addresses = '*'\/g\" /etc/postgresql/15/main/postgresql.conf",
+              "sed -i \"s/^#listen_addresses = 'localhost'/listen_addresses = '*'\" /etc/postgresql/15/main/postgresql.conf",
               "echo \"host all all 0.0.0.0/0 md5\" >> /etc/postgresql/15/main/pg_hba.conf",
               "systemctl restart postgresql"
             ]' \
