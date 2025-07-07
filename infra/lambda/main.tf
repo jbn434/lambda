@@ -11,5 +11,6 @@ module "lambda" {
   subnet_azs           = var.subnet_azs
   subnet_cidrs         = var.subnet_cidrs
   resource_name_prefix = var.resource_name_prefix
+
 }
 
