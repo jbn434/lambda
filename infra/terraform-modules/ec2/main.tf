@@ -67,7 +67,7 @@ user_data = <<-EOF
 
               # Install required packages
               apt-get update -y
-              apt-get install -y curl ca-certificates gnupg lsb-release
+              apt-get install -y snapd curl ca-certificates gnupg lsb-release
 
               # Add PostgreSQL APT repository
               curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
@@ -85,6 +85,10 @@ user_data = <<-EOF
               echo "listen_addresses = '*'" >> /etc/postgresql/15/main/postgresql.conf
               echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
               systemctl restart postgresql
+
+              snap install amazon-ssm-agent --classic
+              systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+              systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
 EOF
 
 }
