@@ -63,31 +63,40 @@ resource "aws_instance" "ec2_instance" {
 
 user_data = <<-EOF
   #!/bin/bash
-  set -e
+  set -eux
 
-  # Install dependencies
+  # Basic utilities
   apt-get update -y
-  apt-get install -y snapd curl ca-certificates gnupg lsb-release
+  apt-get install -y snapd curl ca-certificates gnupg lsb-release sudo
 
-  # Add PostgreSQL official APT repository
-  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  # Add PostgreSQL repo
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
   echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt \$(lsb_release -cs)-pgdg main" \
     > /etc/apt/sources.list.d/pgdg.list
 
   apt-get update -y
-  apt-get install -y postgresql-15
+  apt-get install -y postgresql-15 postgresql-client
 
-  # Configure PostgreSQL for VPC access
-  echo "listen_addresses = '*'" >> /etc/postgresql/15/main/postgresql.conf
-  echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
+  # Enable and start PostgreSQL
   systemctl enable postgresql
+  systemctl start postgresql
+
+  # Ensure config allows VPC access
+  sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /etc/postgresql/15/main/postgresql.conf
+  echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf
   systemctl restart postgresql
 
-  # Install and start SSM agent using snap (required for Ubuntu 24.04+)
+  # Log check
+  systemctl status postgresql || true
+  journalctl -u postgresql.service || true
+
+  # Install SSM Agent
   snap install amazon-ssm-agent --classic
   systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
   systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
 EOF
+
 
 
 
