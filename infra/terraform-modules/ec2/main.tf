@@ -61,20 +61,6 @@ resource "aws_instance" "ec2_instance" {
     }
   )
 
-resource "aws_iam_policy" "s3_read_sql_backup" {
-  name        = "${var.instance_name}-s3-read-sql"
-  description = "Allow EC2 to read SQL backup from S3"
-  policy      = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect   = "Allow",
-        Action   = ["s3:GetObject"],
-        Resource = "arn:aws:s3:::${var.sql_backup_bucket}/*"
-      }
-    ]
-  })
-}
 
 
 user_data = <<-EOF
@@ -91,4 +77,26 @@ EOF
 
 
 
+}
+
+resource "aws_iam_policy" "s3_read_sql_backup" {
+  name        = "s3-read-sql-backup"
+  description = "Allow read access to SQL backup in S3"
+  policy      = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:GetObject"
+        ],
+        Resource = "arn:aws:s3:::${var.sql_backup_bucket}/license-backup.sql"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_policy_to_instance_role" {
+  role       = aws_iam_instance_profile.ec2_instance_profile.role
+  policy_arn = aws_iam_policy.s3_read_sql_backup.arn
 }
