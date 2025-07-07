@@ -69,7 +69,7 @@ user_data = <<-EOF
 
   # Install dependencies
   apt-get update -y
-  apt-get install -y curl gnupg2 lsb-release ca-certificates software-properties-common unzip sudo
+  apt-get install -y curl gnupg2 lsb-release ca-certificates software-properties-common sudo unzip
 
   # Install and start SSM agent
   snap install amazon-ssm-agent --classic
@@ -79,10 +79,9 @@ user_data = <<-EOF
   # Install AWS CLI v2
   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
   unzip awscliv2.zip
-  ./aws/install
+  cd aws
+  ./install
 EOF
-
-
 
 
 
