@@ -62,6 +62,9 @@ jobs:
       - name: 📤 Get EC2 Name Tag from Terraform
         id: get-ec2-name
         working-directory: ./infra/ec2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           EC2_NAME=$(terraform output -raw ec2_instance_name)
           echo "ec2_name=$EC2_NAME" >> $GITHUB_OUTPUT
