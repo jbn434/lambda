@@ -98,7 +98,7 @@ resource "aws_iam_policy" "s3_read_sql_backup" {
         Action = [
           "s3:GetObject"
         ],
-        Resource = "arn:aws:s3:::${var.sql_backup_bucket}/license-backup.sql"
+        Resource = "arn:aws:s3:::${var.sql_backup_bucket}/back-up-db/license_backup.sql"
       }
     ]
   })
