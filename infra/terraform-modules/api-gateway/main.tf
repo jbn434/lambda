@@ -51,8 +51,8 @@ resource "aws_cloudwatch_log_group" "api_gw_logs" {
 }
 
 # --- IAM role for CloudWatch logging ---
-resource "aws_iam_role" "api_gw_cloudwatch_rolev1" {
-  name = "${var.api_name}-api-gw-logs-role"
+resource "aws_iam_role" "api_gw_cloudwatch_role" {
+  name = "${var.api_name}-api-gw-logs-rolev1"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
