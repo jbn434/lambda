@@ -66,6 +66,7 @@ resource "aws_iam_role" "api_gw_cloudwatch_role" {
 }
 
 resource "aws_iam_role_policy" "api_gw_logging_policy" {
+  name = "${var.api_name}-api-gw-logs-policy"
   role = aws_iam_role.api_gw_cloudwatch_role.id
 
   policy = jsonencode({
@@ -86,6 +87,9 @@ resource "aws_iam_role_policy" "api_gw_logging_policy" {
 
 resource "aws_api_gateway_account" "api_account" {
   cloudwatch_role_arn = aws_iam_role.api_gw_cloudwatch_role.arn
+  depends_on = [
+    aws_iam_role_policy.api_gw_logging_policy
+  ]
 }
 
 resource "aws_api_gateway_stage" "stage" {
