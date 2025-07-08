@@ -76,15 +76,14 @@ resource "aws_iam_role_policy" "api_gw_logging_policy" {
       {
         Effect = "Allow",
         Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "logs:*"
         ],
         Resource = "*"
       }
     ]
   })
 }
+
 
 # --- Delay to ensure IAM propagation before using in API Gateway ---
 resource "null_resource" "iam_propagation_delay" {
