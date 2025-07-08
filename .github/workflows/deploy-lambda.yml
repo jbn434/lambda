@@ -127,7 +127,6 @@ jobs:
             --parameters 'commands=[
               "export DEBIAN_FRONTEND=noninteractive",
               "set -eux",
-              "if ! command -v psql || ! psql --version | grep -q '\''15'\''; then",
               "apt-get update -y",
               "apt-get install -y curl gnupg2 lsb-release ca-certificates sudo software-properties-common",
               "curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --yes --dearmor -o /usr/share/keyrings/postgresql.gpg",
@@ -138,10 +137,7 @@ jobs:
               "systemctl start postgresql",
               "echo \"host all all 0.0.0.0/0 md5\" >> /etc/postgresql/15/main/pg_hba.conf",
               "sudo -u postgres psql -c \"ALTER SYSTEM SET listen_addresses = '*'\"",
-              "systemctl restart postgresql",
-              "else",
-              "  echo 'PostgreSQL 15 already installed. Skipping.'",
-              "fi"
+              "systemctl restart postgresql"
             ]' \
             --region us-east-1 \
             --output text
