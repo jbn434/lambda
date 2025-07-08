@@ -14,34 +14,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⬇️ Checkout repository
+      - name:  Checkout repository
         uses: actions/checkout@v3
 
-      - name: 🔧 Set up Node.js
+      - name:  Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: 📦 Install dependencies
+      - name:  Install dependencies
         working-directory: ./src
         run: npm ci
 
-      - name: 🛠️ Build NestJS app
+      - name: 🛠️Build NestJS app
         working-directory: ./src
         run: npm run build
 
-      - name: 📁 Package Lambda as ZIP
+      - name:  Package Lambda as ZIP
         working-directory: ./src
         run: |
           npm prune --production
           zip -r ../infra/lambda/backend-api.zip dist node_modules package.json -x "**/*.map" "**/*.d.ts" "**/test/**"
 
-      - name: ⚙️ Set up Terraform
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: 🌍 Terraform Lambda Init & Apply
+      - name:  Terraform Lambda Init & Apply
         working-directory: ./infra/lambda
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -50,7 +50,7 @@ jobs:
           terraform init
           terraform apply -auto-approve -var-file=dev.tfvars
 
-      - name: 🌍 Terraform EC2 Init & Apply
+      - name:  Terraform EC2 Init & Apply
         working-directory: ./infra/ec2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -59,7 +59,7 @@ jobs:
           terraform init
           terraform apply -auto-approve -var-file=dev.tfvars
 
-      - name: 📤 Get EC2 Name Tag and S3 Bucket from Terraform
+      - name:  Get EC2 Name Tag and S3 Bucket from Terraform
         id: get-vars
         working-directory: ./infra/ec2
         env:
@@ -71,7 +71,7 @@ jobs:
           echo "EC2_NAME_TAG=$(terraform output -raw ec2_instance_name)" >> $GITHUB_ENV
           echo "SQL_BACKUP_BUCKET=$(terraform output -raw sql_backup_bucket)" >> $GITHUB_ENV
 
-      - name: 💻 Check & Install AWS CLI if not present
+      - name:  Check & Install AWS CLI if not present
         run: |
           if ! command -v aws &> /dev/null; then
             echo "AWS CLI not found. Installing..."
@@ -79,10 +79,10 @@ jobs:
             unzip -q awscliv2.zip
             sudo ./aws/install
           else
-            echo "✅ AWS CLI already installed: $(aws --version)"
+            echo " AWS CLI already installed: $(aws --version)"
           fi
 
-      - name: ⏳ Wait for EC2 to register in SSM
+      - name:  Wait for EC2 to register in SSM
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -95,7 +95,7 @@ jobs:
 
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
 
-          echo "🔍 Checking SSM registration for: $INSTANCE_ID"
+          echo " Checking SSM registration for: $INSTANCE_ID"
           for i in {1..10}; do
             CHECK=$(aws ssm describe-instance-information \
               --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
@@ -104,18 +104,18 @@ jobs:
               --output text 2>/dev/null)
 
             if [[ "$CHECK" == "$INSTANCE_ID" ]]; then
-              echo "✅ EC2 registered with SSM."
+              echo " EC2 registered with SSM."
               exit 0
             fi
 
-            echo "⏳ Waiting for SSM... attempt $i"
+            echo " Waiting for SSM... attempt $i"
             sleep 15
           done
 
-          echo "❌ EC2 instance not registered in SSM."
+          echo " EC2 instance not registered in SSM."
           exit 1
 
-      - name: 🛠️ Install PostgreSQL 15 via SSM
+      - name: 🛠️nstall PostgreSQL 15 via SSM
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -127,6 +127,7 @@ jobs:
             --parameters 'commands=[
               "export DEBIAN_FRONTEND=noninteractive",
               "set -eux",
+              "if ! command -v psql || ! psql --version | grep -q '\''15'\''; then",
               "apt-get update -y",
               "apt-get install -y curl gnupg2 lsb-release ca-certificates sudo software-properties-common",
               "curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --yes --dearmor -o /usr/share/keyrings/postgresql.gpg",
@@ -138,11 +139,14 @@ jobs:
               "echo \"host all all 0.0.0.0/0 md5\" >> /etc/postgresql/15/main/pg_hba.conf",
               "sudo -u postgres psql -c \"ALTER SYSTEM SET listen_addresses = '*'\"",
               "systemctl restart postgresql"
+              "else",
+              "  echo '\''PostgreSQL 15 already installed. Skipping.'\''",
+              "fi"
             ]' \
             --region us-east-1 \
             --output text
 
-      - name: 🗃️ Create DB & Import SQL Backup via SSM
+      - name: Create DB & Import SQL Backup via SSM
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -159,15 +163,21 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Create DB and Import SQL Backup" \
             --parameters 'commands=[
-              "set -eux",
-              "sudo -u postgres psql -tc \"SELECT 1 FROM pg_database WHERE datname = '\''license'\''\" | grep -q 1 || sudo -u postgres psql -c '\''CREATE DATABASE license;'\''",
-              "aws s3 cp s3://'"$SQL_BACKUP_BUCKET"'/back-up-db/license_backup.sql /tmp/license_backup.sql",
-              "sudo -u postgres psql -d license -f /tmp/license_backup.sql"
+              "bash -c '\''set -eux; \
+                sudo -u postgres psql -tc \"SELECT 1 FROM pg_database WHERE datname = '\''license'\''\" | grep -q 1 || sudo -u postgres psql -c \"CREATE DATABASE license\"; \
+                sudo -u postgres psql -d license -tc \"SELECT 1 FROM information_schema.tables WHERE table_name = '\''users'\'';\" > /dev/null 2>&1; \
+                if [ $? -ne 0 ]; then \
+                  echo \"Restoring DB from S3 backup...\"; \
+                  aws s3 cp s3://'"$SQL_BACKUP_BUCKET"'/back-up-db/license_backup.sql /tmp/license_backup.sql; \
+                  sudo -u postgres psql -d license -f /tmp/license_backup.sql; \
+                else \
+                 echo \"Database already initialized. Skipping restore.\"; \
+                fi'\''"
             ]' \
             --region us-east-1 \
             --output text
 
-      - name: 🌍 Terraform REST API Init & Apply
+      - name:  Terraform REST API Init & Apply
         working-directory: ./infra/api
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

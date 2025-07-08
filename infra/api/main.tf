@@ -5,4 +5,5 @@ module "api_gateway" {
   lambda_function_name  = data.terraform_remote_state.lambda.outputs.lambda_function_name
   lambda_invoke_arn     = data.terraform_remote_state.lambda.outputs.lambda_function_invoke_arn
   region                = var.region
+  log_group_name        = var.log_group_name
 }
