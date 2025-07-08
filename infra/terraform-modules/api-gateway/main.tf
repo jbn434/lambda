@@ -51,7 +51,7 @@ resource "aws_cloudwatch_log_group" "api_gw_logs" {
 }
 
 # --- IAM role for CloudWatch logging ---
-resource "aws_iam_role" "api_gw_cloudwatch_role" {
+resource "aws_iam_role" "api_gw_cloudwatch_rolev1" {
   name = "${var.api_name}-api-gw-logs-role"
 
   assume_role_policy = jsonencode({
@@ -67,7 +67,7 @@ resource "aws_iam_role" "api_gw_cloudwatch_role" {
 }
 
 resource "aws_iam_role_policy" "api_gw_logging_policy" {
-  name = "${var.api_name}-api-gw-logs-policy"
+  name = "${var.api_name}-api-gw-logs-policyv2"
   role = aws_iam_role.api_gw_cloudwatch_role.id
 
   policy = jsonencode({
@@ -112,5 +112,21 @@ resource "aws_api_gateway_stage" "stage" {
   deployment_id = aws_api_gateway_deployment.deployment.id
   rest_api_id   = aws_api_gateway_rest_api.nestjs_api.id
   stage_name    = var.stage_name
-
+ access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gw_logs.arn
+    format = jsonencode({
+      requestId       = "$context.requestId"
+      apiId           = "$context.apiId"
+      domainName      = "$context.domainName"
+      stage           = "$context.stage"
+      protocol        = "$context.protocol"
+      httpMethod      = "$context.httpMethod"
+      path            = "$context.path"
+      status          = "$context.status"
+      responseLatency = "$context.responseLatency"
+      responseLength  = "$context.responseLength"
+      sourceIp        = "$context.identity.sourceIp"
+      userAgent       = "$context.identity.userAgent"
+    })
+  }
 }
