@@ -140,7 +140,7 @@ jobs:
               "sudo -u postgres psql -c \"ALTER SYSTEM SET listen_addresses = '*'\"",
               "systemctl restart postgresql"
               "else",
-              "  echo '\''PostgreSQL 15 already installed. Skipping.'\''",
+              "  echo 'PostgreSQL 15 already installed. Skipping.''",
               "fi"
             ]' \
             --region us-east-1 \
