@@ -1,4 +1,4 @@
-name: Deploy Lambda
+name: Deploy Lambdaa
 
 on:
   push:
@@ -12,113 +12,108 @@ on:
 jobs:
   deploy-lambda:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      AWS_REGION: us-east-1
 
     steps:
-      - name:  Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name:  Set up Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name:  Install dependencies
+      - name: Install dependencies
         working-directory: ./src
         run: npm ci
 
-      - name: 🛠️Build NestJS app
+      - name: Build NestJS app
         working-directory: ./src
         run: npm run build
 
-      - name:  Package Lambda as ZIP
+      - name: Package Lambda as ZIP
         working-directory: ./src
         run: |
           npm prune --production
           zip -r ../infra/lambda/backend-api.zip dist node_modules package.json -x "**/*.map" "**/*.d.ts" "**/test/**"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name:  Terraform Lambda Init & Apply
+      - name: Terraform Lambda Init & Apply
         working-directory: ./infra/lambda
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           terraform init
           terraform apply -auto-approve -var-file=dev.tfvars
 
-      - name:  Terraform EC2 Init & Apply
+      - name: Terraform EC2 Init & Apply
         working-directory: ./infra/ec2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           terraform init
           terraform apply -auto-approve -var-file=dev.tfvars
 
-      - name:  Get EC2 Name Tag and S3 Bucket from Terraform
+      - name: Get EC2 Name Tag and S3 Bucket from Terraform
         id: get-vars
         working-directory: ./infra/ec2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           echo "ec2_name=$(terraform output -raw ec2_instance_name)" >> $GITHUB_OUTPUT
           echo "sql_backup_bucket=$(terraform output -raw sql_backup_bucket)" >> $GITHUB_OUTPUT
           echo "EC2_NAME_TAG=$(terraform output -raw ec2_instance_name)" >> $GITHUB_ENV
           echo "SQL_BACKUP_BUCKET=$(terraform output -raw sql_backup_bucket)" >> $GITHUB_ENV
 
-      - name:  Check & Install AWS CLI if not present
+      - name: Check & Install AWS CLI if not present
         run: |
           if ! command -v aws &> /dev/null; then
-            echo "AWS CLI not found. Installing..."
+            echo "Installing AWS CLI..."
             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
             unzip -q awscliv2.zip
             sudo ./aws/install
-          else
-            echo " AWS CLI already installed: $(aws --version)"
           fi
+          aws --version
 
-      - name:  Wait for EC2 to register in SSM
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          EC2_NAME_TAG: ${{ env.EC2_NAME_TAG }}
+      - name: Wait for EC2 to register in SSM
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=$EC2_NAME_TAG" \
             --query "Reservations[*].Instances[*].InstanceId" \
-            --output text --region us-east-1)
+            --output text --region $AWS_REGION)
 
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
 
-          echo " Checking SSM registration for: $INSTANCE_ID"
           for i in {1..10}; do
             CHECK=$(aws ssm describe-instance-information \
               --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
-              --region us-east-1 \
+              --region $AWS_REGION \
               --query "InstanceInformationList[0].InstanceId" \
               --output text 2>/dev/null)
 
             if [[ "$CHECK" == "$INSTANCE_ID" ]]; then
-              echo " EC2 registered with SSM."
+              echo "EC2 registered with SSM."
               exit 0
             fi
 
-            echo " Waiting for SSM... attempt $i"
+            echo "Waiting for SSM... attempt $i"
             sleep 15
           done
 
-          echo " EC2 instance not registered in SSM."
+          echo "EC2 instance not registered in SSM."
           exit 1
 
-      - name: 🛠️nstall PostgreSQL 15 via SSM
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Install PostgreSQL 15 via SSM
         run: |
           aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
@@ -139,20 +134,15 @@ jobs:
               "sudo -u postgres psql -c \"ALTER SYSTEM SET listen_addresses = '*'\"",
               "systemctl restart postgresql"
             ]' \
-            --region us-east-1 \
+            --region $AWS_REGION \
             --output text
 
       - name: Create DB & Import SQL Backup via SSM
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          EC2_NAME_TAG: ${{ env.EC2_NAME_TAG }}
-          SQL_BACKUP_BUCKET: ${{ env.SQL_BACKUP_BUCKET }}
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=$EC2_NAME_TAG" \
             --query "Reservations[*].Instances[*].InstanceId" \
-            --output text --region us-east-1)
+            --output text --region $AWS_REGION)
 
           aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
@@ -167,17 +157,14 @@ jobs:
                   aws s3 cp s3://'"$SQL_BACKUP_BUCKET"'/back-up-db/license_backup.sql /tmp/license_backup.sql; \
                   sudo -u postgres psql -d license -f /tmp/license_backup.sql; \
                 else \
-                 echo \"Database already initialized. Skipping restore.\"; \
+                  echo \"Database already initialized. Skipping restore.\"; \
                 fi'\''"
             ]' \
-            --region us-east-1 \
+            --region $AWS_REGION \
             --output text
 
-      - name:  Terraform REST API Init & Apply
+      - name: Terraform REST API Init & Apply
         working-directory: ./infra/api
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           terraform init
           terraform apply -auto-approve -var-file=dev.tfvars
